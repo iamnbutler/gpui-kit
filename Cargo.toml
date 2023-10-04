@@ -2,7 +2,7 @@
 name = "vitesse"
 version = "0.1.0"
 
-description = "A slick collection of building blocks to help you start building your next gpui app lighting fast."
+description = "A slick collection of building blocks to help you start building your next app using the upcoming gpui library."
 homepage = "https://github.com/iamnbutler/vitesse"
 repository = "https://github.com/iamnbutler/vitesse"
 
