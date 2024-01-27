@@ -1,14 +1,10 @@
-[package]
-name = "vitesse"
-version = "0.1.0"
+default-members = ["crates/vitesse"]
 
-description = "A slick collection of building blocks to help you start building your next app using the upcoming gpui library."
-homepage = "https://github.com/iamnbutler/vitesse"
-repository = "https://github.com/iamnbutler/vitesse"
+[workspace]
+resolver = "2"
+members = [
+    "crates/vitesse"
+]
 
-edition = "2021"
-license = "MIT"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[workspace.dependencies]
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "1564bd82f25c3cef74da581489c31389810d39f7" }

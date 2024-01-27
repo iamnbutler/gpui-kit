@@ -1,0 +1,13 @@
+[package]
+name = "vitesse"
+version = "0.1.0"
+
+description = "A slick collection of building blocks to help you start building your next app with gpui."
+homepage = "https://github.com/iamnbutler/vitesse"
+repository = "https://github.com/iamnbutler/vitesse"
+
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+gpui.workspace = true

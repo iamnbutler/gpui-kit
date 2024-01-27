@@ -22,8 +22,7 @@ These components are designed to make it fast and easy to bootstrap a gpui app. 
 
 The initial steps for Vitesse will be to study and learn from existing  UI libraries, and start exploring how to build primitives.
 
-The release of Vitesse will be blocked in the near future by the release of gpui, but in the meantime we'll be working on how to build the library and what it will look like.
 
 ## Contributing
 
-In the future contribution will be heavily encouraged, but for now we're still in the early stages of planning and development.
+Contributions are welcome! As this is a component system there will be a lot of conversation around API design and component patterns, so we recommend starting a discussion before starting work on a PR.
