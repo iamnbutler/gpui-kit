@@ -1,6 +1,6 @@
 use gpui::{
-    div, point, prelude::*, px, rgb, size, App, AssetSource, Bounds, GlobalPixels, SharedString,
-    Size, WindowBounds, WindowOptions,
+    div, point, prelude::*, px, rgb, size, App, Bounds, GlobalPixels, SharedString, Size,
+    WindowBounds, WindowOptions,
 };
 
 mod prelude;
@@ -22,6 +22,7 @@ impl Render for Hello {
             .text_xl()
             .text_color(rgb(0xffffff))
             .child(icons::Icon::new(IconName::Check))
+            .child(icons::Icon::new(IconName::QuestionMark))
             .child(format!("Hello, {}!", &self.text))
     }
 }

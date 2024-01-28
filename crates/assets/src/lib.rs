@@ -23,7 +23,6 @@ impl AssetSource for Assets {
         Ok(Self::iter()
             .filter_map(|p| {
                 if p.starts_with(path) {
-                    println!("{}", p);
                     Some(p.into())
                 } else {
                     None

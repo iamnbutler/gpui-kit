@@ -1,4 +1,4 @@
-use gpui::svg;
+use gpui::{rgb, svg, Styled};
 
 pub enum IconName {
     Check,
@@ -8,8 +8,8 @@ pub enum IconName {
 impl IconName {
     pub fn path(&self) -> &'static str {
         match self {
-            Self::Check => "icons/check.svg",
-            Self::QuestionMark => "icons/question-mark.svg",
+            Self::Check => "icons/lucide/check.svg",
+            Self::QuestionMark => "icons/lucide/help-circle.svg",
         }
     }
 }
@@ -18,6 +18,6 @@ pub struct Icon {}
 
 impl Icon {
     pub fn new(icon: IconName) -> gpui::Svg {
-        svg().path(icon.path())
+        svg().size_4().text_color(rgb(0xff00ff)).path(icon.path())
     }
 }
