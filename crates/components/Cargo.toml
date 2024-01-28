@@ -1,0 +1,11 @@
+[package]
+name = "components"
+version = "0.1.0"
+
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+gpui.workspace = true
+rust-embed.workspace = true
+anyhow.workspace = true
