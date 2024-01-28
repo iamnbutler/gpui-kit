@@ -3,6 +3,10 @@ use gpui::{
     WindowBounds, WindowOptions,
 };
 
+mod prelude;
+
+use prelude::*;
+
 struct Hello {
     text: SharedString,
 }
@@ -17,12 +21,14 @@ impl Render for Hello {
             .items_center()
             .text_xl()
             .text_color(rgb(0xffffff))
+            .child(icons::Icon::new(IconName::Check))
+            .child(icons::Icon::new(IconName::QuestionMark))
             .child(format!("Hello, {}!", &self.text))
     }
 }
 
 fn main() {
-    App::new().run(|cx| {
+    App::new().with_assets(Assets).run(|cx| {
         let displays = cx.displays();
         let first_display = displays.first().expect("no displays");
 

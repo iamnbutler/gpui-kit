@@ -3,8 +3,11 @@ default-members = ["crates/vitesse"]
 [workspace]
 resolver = "2"
 members = [
-    "crates/vitesse"
+    "crates/vitesse",
+    "crates/assets"
 ]
 
 [workspace.dependencies]
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "1564bd82f25c3cef74da581489c31389810d39f7" }
+rust-embed = "8.2.0"
+anyhow = "1.0.79"
