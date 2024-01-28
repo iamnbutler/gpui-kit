@@ -7,5 +7,4 @@ license = "MIT"
 
 [dependencies]
 gpui.workspace = true
-rust-embed.workspace = true
-anyhow.workspace = true
+state = { path = "../state" }
