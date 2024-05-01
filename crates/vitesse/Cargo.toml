@@ -11,4 +11,5 @@ license = "MIT"
 
 [dependencies]
 gpui.workspace = true
-assets = {path = "../assets"}
+assets = { path = "../assets" }
+common = { path = "../common" }

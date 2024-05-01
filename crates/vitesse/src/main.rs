@@ -1,3 +1,4 @@
+use common::init::init;
 use gpui::{
     div, point, prelude::*, px, rgb, size, App, Bounds, GlobalPixels, SharedString, Size,
     WindowBounds, WindowOptions,
@@ -12,7 +13,9 @@ struct Hello {
 }
 
 impl Render for Hello {
-    fn render(&mut self, _cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+        let input = cx.new_view(|cx| common::input::Input::new(cx, "input"));
+
         div()
             .flex()
             .bg(rgb(0x000000))
@@ -24,6 +27,7 @@ impl Render for Hello {
             .child(icons::Icon::new(IconName::Check))
             .child(icons::Icon::new(IconName::QuestionMark))
             .child(format!("Hello, {}!", &self.text))
+            .child(input)
     }
 }
 
@@ -37,6 +41,8 @@ fn main() {
             first_display.bounds().center().x - window_size.width / 2.,
             first_display.bounds().center().y - window_size.height / 2.,
         );
+
+        init(cx);
 
         cx.open_window(
             WindowOptions {
