@@ -1,5 +1,7 @@
 # Vitesse
 
+**Note: To be renamed to `gpui-kit` shortly.**
+
 Vitesse is an open-source UI toolkit for gpui, the fast, native Rust GUI library.
 
 ## Overview
