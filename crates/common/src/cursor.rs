@@ -1,6 +1,7 @@
+#![allow(unused)]
 use gpui::{
-    div, fill, outline, point, px, size, AnyElement, AvailableSpace, Bounds, Hsla, Pixels,
-    ShapedLine, SharedString, WindowContext,
+    div, fill, outline, point, px, size, AnyElement, AvailableSpace, Bounds, Hsla, IntoElement,
+    ParentElement, Pixels, ShapedLine, SharedString, Styled, WindowContext,
 };
 
 /// The shape of a selection cursor.
@@ -131,9 +132,7 @@ impl CursorLayout {
         cx.paint_quad(cursor);
 
         if let Some(block_text) = &self.block_text {
-            block_text
-                .paint(self.origin + origin, self.line_height, cx)
-                .log_err();
+            todo!()
         }
     }
 

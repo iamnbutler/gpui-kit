@@ -1,16 +1,13 @@
+#![allow(unused)]
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, fill, hsla, point, px, relative, AppContext, Bounds, CursorStyle, Edges, Element,
-    ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, HighlightStyle, Hitbox,
-    Hsla, InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model,
-    MouseButton, ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Size,
-    StatefulInteractiveElement, Styled, TextRun, TextStyle, ViewContext, WindowContext,
-    WindowTextSystem, WrappedLine,
+    div, fill, hsla, point, px, relative, AppContext, Bounds, Context, CursorStyle, Edges, Element,
+    ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, Hitbox, Hsla,
+    InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model, MouseButton,
+    ParentElement, Pixels, Point, Render, SharedString, Size, StatefulInteractiveElement, Styled,
+    TextRun, TextStyle, ViewContext, WindowContext, WrappedLine,
 };
 use itertools::Itertools;
-use std::mem;
-use std::ops::Range;
-use std::{fmt::Debug, ops::RangeInclusive};
 
 use crate::cursor::CursorLayout;
 use crate::{color::transparent, style::Outline};
@@ -179,10 +176,17 @@ impl InputElement {
         &self,
         cx: &WindowContext,
     ) -> anyhow::Result<smallvec::SmallVec<[WrappedLine; 1]>> {
+        // TODO: We should use the text style from input
+        // not the default one
+        let default_text_style = cx.text_style();
+
         let text_system = cx.text_system();
         let text = self.input.read(cx).value.clone();
-        let current_font = cx.text_style().font().clone();
-        let font_size = self.style.text.font_size;
+        let current_font = default_text_style.font().clone();
+        let font_size = default_text_style
+            .font_size
+            .clone()
+            .to_pixels(cx.rem_size());
         let text_run = [TextRun {
             len: text.len().clone(),
             font: cx.text_style().font().clone(),
@@ -192,32 +196,14 @@ impl InputElement {
             strikethrough: None,
         }];
 
-        text_system.shape_text(text, font_size, &text_run, None)
+        text_system.shape_text(text.into(), font_size, &text_run, None)
     }
-
-    // fn layout_line(
-    //     text: SharedString,
-    //     text_style: &TextStyle,
-    //     text_system: &WindowTextSystem,
-    //     cx: &WindowContext<'_>,
-    // ) -> ShapedLine {
-    // }
 
     // fn shape_cursor(
     //     cursor_point: DisplayCursor,
     //     size: usize,
     //     text_fragment: &ShapedLine,
     // ) -> Option<(Point<Pixels>, Pixels)> {
-    // }
-
-    // fn cell_style(
-    //     indexed: &IndexedCell,
-    //     fg: terminal::alacritty_terminal::vte::ansi::Color,
-    //     // bg: terminal::alacritty_terminal::ansi::Color,
-    //     colors: &Theme,
-    //     text_style: &TextStyle,
-    //     hyperlink: Option<(HighlightStyle, &RangeInclusive<AlacPoint>)>,
-    // ) -> TextRun {
     // }
 
     // fn generic_button_handler<E>(
@@ -249,29 +235,6 @@ pub struct LayoutState {
     display_offset: usize,
 }
 
-/// Helper struct for converting data between Alacritty's cursor points, and displayed cursor points.
-struct DisplayCursor {
-    line: i32,
-    col: usize,
-}
-
-impl DisplayCursor {
-    fn from(cursor_point: Point<f32>, display_offset: usize) -> Self {
-        Self {
-            line: cursor_point.line.0 + display_offset as i32,
-            col: cursor_point.column.0,
-        }
-    }
-
-    pub fn line(&self) -> i32 {
-        self.line
-    }
-
-    pub fn col(&self) -> usize {
-        self.col
-    }
-}
-
 #[derive(Debug, Default)]
 struct LayoutCell {
     point: Point<i32>,
@@ -290,16 +253,17 @@ impl LayoutCell {
         _visible_bounds: Bounds<Pixels>,
         cx: &mut WindowContext,
     ) {
-        let pos = {
-            let point = self.point;
+        todo!()
+        // let pos = {
+        //     let point = self.point;
 
-            Point::new(
-                (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
-                origin.y + point.line as f32 * layout.dimensions.line_height,
-            )
-        };
+        //     Point::new(
+        //         (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
+        //         origin.y + point.line as f32 * layout.dimensions.line_height,
+        //     )
+        // };
 
-        self.text.paint(pos, layout.dimensions.line_height, cx).ok();
+        // self.text.paint(pos, layout.dimensions.line_height, cx).ok();
     }
 }
 
@@ -328,20 +292,21 @@ impl LayoutRect {
     }
 
     fn paint(&self, origin: Point<Pixels>, layout: &LayoutState, cx: &mut WindowContext) {
-        let position = {
-            let point = self.point;
-            point(
-                (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
-                origin.y + point.line as f32 * layout.dimensions.line_height,
-            )
-        };
-        let size = point(
-            (layout.dimensions.cell_width * self.num_of_cells as f32).ceil(),
-            layout.dimensions.line_height,
-        )
-        .into();
+        todo!()
+        // let position = {
+        //     let point = self.point;
+        //     point(
+        //         (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
+        //         origin.y + point.line as f32 * layout.dimensions.line_height,
+        //     )
+        // };
+        // let size = point(
+        //     (layout.dimensions.cell_width * self.num_of_cells as f32).ceil(),
+        //     layout.dimensions.line_height,
+        // )
+        // .into();
 
-        cx.paint_quad(fill(Bounds::new(position, size), self.color));
+        // cx.paint_quad(fill(Bounds::new(position, size), self.color));
     }
 }
 
@@ -390,6 +355,18 @@ impl Element for InputElement {
         cx: &mut WindowContext,
     ) {
         todo!()
+    }
+
+    fn into_any(self) -> gpui::AnyElement {
+        todo!()
+    }
+}
+
+impl IntoElement for InputElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
     }
 }
 
