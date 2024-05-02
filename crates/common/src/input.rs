@@ -1,13 +1,15 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
     div, fill, hsla, point, px, relative, AppContext, Bounds, CursorStyle, Edges, Element,
-    ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, Hitbox, Hsla,
-    InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model, MouseButton,
-    ParentElement, Pixels, Point, Render, SharedString, Size, StatefulInteractiveElement, Styled,
-    TextStyle, ViewContext, WindowContext,
+    ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, HighlightStyle, Hitbox,
+    Hsla, InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model,
+    MouseButton, ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Size,
+    StatefulInteractiveElement, Styled, TextRun, TextStyle, ViewContext, WindowContext,
+    WindowTextSystem, WrappedLine,
 };
 use itertools::Itertools;
 use std::mem;
+use std::ops::Range;
 use std::{fmt::Debug, ops::RangeInclusive};
 
 use crate::cursor::CursorLayout;
@@ -28,7 +30,7 @@ use crate::{color::transparent, style::Outline};
 // -----
 
 struct TextInputHandler {
-    input_text: Model<InputText>,
+    input_text: Model<Input>,
     // workspace: WeakView<Workspace>,
     cursor_bounds: Option<Bounds<Pixels>>,
 }
@@ -86,7 +88,7 @@ pub enum InputEvent {
     Blur,
 }
 
-impl EventEmitter<InputEvent> for Input {}
+impl EventEmitter<InputEvent> for Input1 {}
 
 #[derive(Clone)]
 pub struct InputStyle {
@@ -116,13 +118,13 @@ impl Default for InputStyle {
     }
 }
 
-struct InputText {
+struct Input {
     selection: Option<std::ops::Range<usize>>,
     cursor: usize,
     value: String,
 }
 
-impl InputText {
+impl Input {
     pub fn new() -> Self {
         Self {
             selection: None,
@@ -136,154 +138,10 @@ impl InputText {
     }
 }
 
-pub struct Input {
-    id: ElementId,
-    focus_handle: FocusHandle,
-    text: Model<InputText>,
-    placeholder: Option<SharedString>,
-    style: InputStyle,
-}
-
-impl Input {
-    pub fn new(cx: &mut ViewContext<Self>, id: impl Into<ElementId>) -> Self {
-        let focus_handle = cx.focus_handle();
-        cx.on_focus(&focus_handle, Self::handle_focus).detach();
-        cx.on_blur(&focus_handle, Self::handle_blur).detach();
-
-        let text = cx.new_model(|_cx| InputText::new());
-
-        Self {
-            id: id.into(),
-            focus_handle,
-            text,
-            placeholder: Some("Placeholder".into()),
-            style: InputStyle::default(),
-        }
-    }
-
-    pub fn set_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
-        self.placeholder = Some(placeholder.into());
-        self
-    }
-
-    fn handle_focus(&mut self, cx: &mut ViewContext<Self>) {
-        cx.emit(InputEvent::Focus);
-        // self.buffer.update(cx, |buffer, cx| {});
-    }
-
-    pub fn handle_blur(&mut self, cx: &mut ViewContext<Self>) {
-        cx.emit(InputEvent::Blur);
-        cx.notify();
-    }
-
-    pub fn is_focused(&self, cx: &ViewContext<Self>) -> bool {
-        cx.focused() == Some(self.focus_handle.clone())
-    }
-}
-
-impl Render for Input {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let current_text = self.text.read(cx).value.clone();
-
-        let padding_inset = 1.0;
-        let padding = if let Some(ring) = self.style.ring.clone() {
-            ring.width + padding_inset
-        } else {
-            2.0 + padding_inset
-        };
-
-        let height = 32.0;
-        let calculated_height = height - padding * 2.0;
-
-        let width = 188.0;
-        let calculated_width = width - padding * 2.0;
-
-        match self.is_focused(cx) {
-            true => {
-                self.style.ring = Some(Outline::new(hsla(0.6, 0.67, 0.46, 1.0)));
-            }
-            false => {
-                self.style.ring = None;
-            }
-        }
-
-        div()
-            .id(self.id.clone())
-            .group("input")
-            .track_focus(&self.focus_handle)
-            .key_context("input")
-            .on_mouse_down(MouseButton::Left, |_, cx| cx.stop_propagation())
-            .on_click(cx.listener(|_, _event, cx| cx.focus_self()))
-            .relative()
-            .flex()
-            .h(px(calculated_height))
-            // TODO: Width should be dynamic
-            // need to be able to read the width of the input
-            .w(px(calculated_width))
-            .overflow_hidden()
-            .cursor(CursorStyle::IBeam)
-            .p(px(padding_inset))
-            .border_2()
-            .border_color(transparent())
-            .when_some(self.style.ring.clone(), |this, ring| {
-                this.when(ring.width > 0.0, |this| this)
-                    .border_color(ring.color)
-                    .rounded(px(ring.radius))
-            })
-            .child(
-                div()
-                    .id("input_inner")
-                    .absolute()
-                    .flex()
-                    .h(px(calculated_height - padding_inset * 2.0))
-                    .w(px(calculated_width - padding_inset * 2.0))
-                    .top(px(-padding_inset))
-                    .left(px(-padding_inset))
-                    .items_center()
-                    .bg(self.style.background)
-                    .when(self.style.border.width > 0.0, |this| this.border())
-                    .border_color(self.style.border.color)
-                    .rounded(px(self.style.border.radius))
-                    .overflow_hidden()
-                    .bg(self.style.background)
-                    .text_color(self.style.text.color)
-                    // .font(self.style.text.font_family.clone())
-                    .text_size(self.style.text.font_size)
-                    .group_hover("input", |this| this.border_color(hsla(0.0, 0.0, 0.31, 1.0)))
-                    .child(
-                        div()
-                            .relative()
-                            .pl(px(self.style.padding.left))
-                            .pr(px(self.style.padding.right))
-                            .pt(px(self.style.padding.top))
-                            .pb(px(self.style.padding.bottom))
-                            .child(if let Some(placeholder) = self.placeholder.clone() {
-                                if current_text.is_empty() {
-                                    placeholder
-                                } else {
-                                    current_text.into()
-                                }
-                            } else {
-                                current_text.into()
-                            }),
-                    ),
-            )
-    }
-}
-
-impl FocusableView for Input {
-    fn focus_handle(&self, _cx: &AppContext) -> FocusHandle {
-        self.focus_handle.clone()
-    }
-}
-
 /// The element that GPUI paints for the input
 pub struct InputElement {
     input: Model<Input>,
-    // Do we need workspace? We don't have access to this
-    // since it isn't part of gpui
-    // workspace: WeakView<Workspace>,
-    focus: FocusHandle,
+    focus_handle: FocusHandle,
     focused: bool,
     cursor_visible: bool,
     interactivity: Interactivity,
@@ -298,22 +156,51 @@ impl InteractiveElement for InputElement {
 impl StatefulInteractiveElement for InputElement {}
 
 impl InputElement {
-    // pub fn new(
-    //     input: Model<Input>,
-    //     workspace: WeakView<Workspace>,
-    //     focus: FocusHandle,
-    //     focused: bool,
-    //     cursor_visible: bool,
-    // ) -> TerminalElement {
-    // }
+    pub fn new(cx: &mut WindowContext) -> Self {
+        let input = cx.new_model(|cx| Input::new());
+        let focus_handle = cx.focus_handle();
 
-    // fn layout_grid(
-    //     grid: &Vec<IndexedCell>,
+        Self {
+            input,
+            focus_handle,
+            focused: false,
+            cursor_visible: true,
+            interactivity: Interactivity::default(),
+        }
+    }
+
+    /// Shape the text for the input using the text system
+    ///
+    /// We could use `shape_line` here to to shape a single line
+    /// but we'll need to be able to shape multiple lines for
+    /// multiline inputs eventually, so we might as
+    /// well start with that.
+    fn shape_text(
+        &self,
+        cx: &WindowContext,
+    ) -> anyhow::Result<smallvec::SmallVec<[WrappedLine; 1]>> {
+        let text_system = cx.text_system();
+        let text = self.input.read(cx).value.clone();
+        let current_font = cx.text_style().font().clone();
+        let font_size = self.style.text.font_size;
+        let text_run = [TextRun {
+            len: text.len().clone(),
+            font: cx.text_style().font().clone(),
+            color: Default::default(),
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        }];
+
+        text_system.shape_text(text, font_size, &text_run, None)
+    }
+
+    // fn layout_line(
+    //     text: SharedString,
     //     text_style: &TextStyle,
     //     text_system: &WindowTextSystem,
-    //     hyperlink: Option<(HighlightStyle, &Range<usize>)>,
     //     cx: &WindowContext<'_>,
-    // ) -> (Vec<LayoutCell>, Vec<LayoutRect>) {
+    // ) -> ShapedLine {
     // }
 
     // fn shape_cursor(
@@ -503,5 +390,148 @@ impl Element for InputElement {
         cx: &mut WindowContext,
     ) {
         todo!()
+    }
+}
+
+// -- old input
+
+pub struct Input1 {
+    id: ElementId,
+    focus_handle: FocusHandle,
+    text: Model<Input>,
+    placeholder: Option<SharedString>,
+    style: InputStyle,
+}
+
+impl Input1 {
+    pub fn new(cx: &mut ViewContext<Self>, id: impl Into<ElementId>) -> Self {
+        let focus_handle = cx.focus_handle();
+        cx.on_focus(&focus_handle, Self::handle_focus).detach();
+        cx.on_blur(&focus_handle, Self::handle_blur).detach();
+
+        let text = cx.new_model(|_cx| Input::new());
+
+        Self {
+            id: id.into(),
+            focus_handle,
+            text,
+            placeholder: Some("Placeholder".into()),
+            style: InputStyle::default(),
+        }
+    }
+
+    pub fn set_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
+        self.placeholder = Some(placeholder.into());
+        self
+    }
+
+    fn handle_focus(&mut self, cx: &mut ViewContext<Self>) {
+        cx.emit(InputEvent::Focus);
+        // self.buffer.update(cx, |buffer, cx| {});
+    }
+
+    pub fn handle_blur(&mut self, cx: &mut ViewContext<Self>) {
+        cx.emit(InputEvent::Blur);
+        cx.notify();
+    }
+
+    pub fn is_focused(&self, cx: &ViewContext<Self>) -> bool {
+        cx.focused() == Some(self.focus_handle.clone())
+    }
+}
+
+impl Render for Input1 {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        let current_text = self.text.read(cx).value.clone();
+
+        let padding_inset = 1.0;
+        let padding = if let Some(ring) = self.style.ring.clone() {
+            ring.width + padding_inset
+        } else {
+            2.0 + padding_inset
+        };
+
+        let height = 32.0;
+        let calculated_height = height - padding * 2.0;
+
+        let width = 188.0;
+        let calculated_width = width - padding * 2.0;
+
+        match self.is_focused(cx) {
+            true => {
+                self.style.ring = Some(Outline::new(hsla(0.6, 0.67, 0.46, 1.0)));
+            }
+            false => {
+                self.style.ring = None;
+            }
+        }
+
+        div()
+            .id(self.id.clone())
+            .group("input")
+            .track_focus(&self.focus_handle)
+            .key_context("input")
+            .on_mouse_down(MouseButton::Left, |_, cx| cx.stop_propagation())
+            .on_click(cx.listener(|_, _event, cx| cx.focus_self()))
+            .relative()
+            .flex()
+            .h(px(calculated_height))
+            // TODO: Width should be dynamic
+            // need to be able to read the width of the input
+            .w(px(calculated_width))
+            .overflow_hidden()
+            .cursor(CursorStyle::IBeam)
+            .p(px(padding_inset))
+            .border_2()
+            .border_color(transparent())
+            .when_some(self.style.ring.clone(), |this, ring| {
+                this.when(ring.width > 0.0, |this| this)
+                    .border_color(ring.color)
+                    .rounded(px(ring.radius))
+            })
+            .child(
+                div()
+                    .id("input_inner")
+                    .absolute()
+                    .flex()
+                    .h(px(calculated_height - padding_inset * 2.0))
+                    .w(px(calculated_width - padding_inset * 2.0))
+                    .top(px(-padding_inset))
+                    .left(px(-padding_inset))
+                    .items_center()
+                    .bg(self.style.background)
+                    .when(self.style.border.width > 0.0, |this| this.border())
+                    .border_color(self.style.border.color)
+                    .rounded(px(self.style.border.radius))
+                    .overflow_hidden()
+                    .bg(self.style.background)
+                    .text_color(self.style.text.color)
+                    // .font(self.style.text.font_family.clone())
+                    .text_size(self.style.text.font_size)
+                    .group_hover("input", |this| this.border_color(hsla(0.0, 0.0, 0.31, 1.0)))
+                    .child(
+                        div()
+                            .relative()
+                            .pl(px(self.style.padding.left))
+                            .pr(px(self.style.padding.right))
+                            .pt(px(self.style.padding.top))
+                            .pb(px(self.style.padding.bottom))
+                            .child(if let Some(placeholder) = self.placeholder.clone() {
+                                if current_text.is_empty() {
+                                    placeholder
+                                } else {
+                                    current_text.into()
+                                }
+                            } else {
+                                current_text.into()
+                            }),
+                    ),
+            )
+    }
+}
+
+impl FocusableView for Input1 {
+    fn focus_handle(&self, _cx: &AppContext) -> FocusHandle {
+        self.focus_handle.clone()
     }
 }

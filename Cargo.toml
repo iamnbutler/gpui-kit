@@ -7,7 +7,8 @@ members = ["crates/gpui-kit", "crates/assets", "crates/common"]
 [workspace.dependencies]
 gpui = { git = "https://github.com/zed-industries/zed.git" }
 rust-embed = "8.2.0"
-anyhow = "1.0.79"
 uuid = "1.8.0"
 chrono = "0.4.38"
 itertools = "0.12.1"
+anyhow = "1.0.82"
+smallvec = "1.13.2"

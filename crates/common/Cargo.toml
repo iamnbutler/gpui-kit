@@ -6,6 +6,7 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-anyhow.workspace = true
 gpui.workspace = true
 itertools.workspace = true
+anyhow.workspace = true
+smallvec.workspace = true

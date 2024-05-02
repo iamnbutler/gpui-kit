@@ -14,7 +14,7 @@ struct Hello {
 
 impl Render for Hello {
     fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
-        let input = cx.new_view(|cx| common::input::Input::new(cx, "input"));
+        let input = cx.new_view(|cx| common::input::Input1::new(cx, "input"));
 
         div()
             .flex()
