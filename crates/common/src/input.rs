@@ -1,11 +1,12 @@
 #![allow(unused)]
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, fill, hsla, point, px, relative, AppContext, Bounds, Context, CursorStyle, Edges, Element,
-    ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, Hitbox, Hsla,
-    InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model, MouseButton,
-    ParentElement, Pixels, Point, Render, SharedString, Size, StatefulInteractiveElement, Styled,
-    TextRun, TextStyle, ViewContext, WindowContext, WrappedLine,
+    div, fill, hsla, point, px, relative, AppContext, Bounds, Context, CursorStyle, DispatchPhase,
+    Edges, Element, ElementId, EventEmitter, FocusHandle, FocusableView, GlobalElementId, Hitbox,
+    Hsla, InputHandler, InteractiveElement, Interactivity, IntoElement, LayoutId, Model,
+    ModifiersChangedEvent, MouseButton, ParentElement, Pixels, Point, Render, SharedString, Size,
+    StatefulInteractiveElement, Styled, TextRun, TextStyle, ViewContext, WindowContext,
+    WrappedLine,
 };
 use itertools::Itertools;
 
@@ -346,17 +347,86 @@ impl Element for InputElement {
 
     fn paint(
         &mut self,
-        id: Option<&GlobalElementId>,
+        global_id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
         cx: &mut WindowContext,
     ) {
-        todo!()
-    }
+        cx.paint_quad(fill(bounds, prepaint.background_color));
+        let origin = bounds.origin;
 
-    fn into_any(self) -> gpui::AnyElement {
-        todo!()
+        let input_handler = TextInputHandler {
+            cursor_bounds: prepaint
+                .cursor
+                .as_ref()
+                .map(|cursor| cursor.bounding_rect(origin)),
+            input_text: self.input.clone(),
+        };
+
+        // self.register_mouse_listeners(origin, prepaint.mode, &prepaint.hitbox, cx);
+
+        cx.set_cursor_style(gpui::CursorStyle::IBeam, &prepaint.hitbox);
+
+        let cursor = prepaint.cursor.take();
+        self.interactivity
+            .paint(global_id, bounds, Some(&prepaint.hitbox), cx, |_, cx| {
+                cx.handle_input(&self.focus_handle, input_handler);
+
+                // In fact we may not need any of this for now
+                // cx.on_key_event({
+                //     let this = self.input.clone();
+                //     move |event: &ModifiersChangedEvent, phase, cx| {
+                //         if phase != DispatchPhase::Bubble {
+                //             return;
+                //         }
+
+                //         // Not aure if we need this, as we don't need to watch for
+                //         // clickable hyperlinks like we do in a terminal or editor
+                //         //
+                //         // let handled = this
+                //         //     .update(cx, |input, _| input.try_modifiers_change(&event.modifiers));
+
+                //         if handled {
+                //             cx.refresh();
+                //         }
+                //     }
+                // });
+
+                for rect in &prepaint.rects {
+                    rect.paint(origin, &prepaint, cx);
+                }
+
+                // TODO: When we have highlighted ranges, we need to paint them here
+                //
+                // for (relative_highlighted_range, color) in
+                //     prepaint.relative_highlighted_ranges.iter()
+                // {
+                //     if let Some((start_y, highlighted_range_lines)) =
+                //         to_highlighted_range_lines(relative_highlighted_range, &prepaint, origin)
+                //     {
+                //         let hr = HighlightedRange {
+                //             start_y, //Need to change this
+                //             line_height: prepaint.dimensions.line_height,
+                //             lines: highlighted_range_lines,
+                //             color: *color,
+                //             //Copied from editor. TODO: move to theme or something
+                //             corner_radius: 0.15 * prepaint.dimensions.line_height,
+                //         };
+                //         hr.paint(bounds, cx);
+                //     }
+                // }
+
+                for cell in &prepaint.cells {
+                    cell.paint(origin, &prepaint, bounds, cx);
+                }
+
+                if self.cursor_visible {
+                    if let Some(mut cursor) = cursor {
+                        cursor.paint(origin, cx);
+                    }
+                }
+            });
     }
 }
 
