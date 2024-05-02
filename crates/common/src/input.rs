@@ -176,9 +176,9 @@ impl InputElement {
         &self,
         cx: &WindowContext,
     ) -> anyhow::Result<smallvec::SmallVec<[WrappedLine; 1]>> {
-        // TODO: We should use the text style from input
-        // not the default one
-        let default_text_style = cx.text_style();
+        // TODO: For now just hard code the input style
+        let style = InputStyle::default();
+        let default_text_style = style.text.clone();
 
         let text_system = cx.text_system();
         let text = self.input.read(cx).value.clone();
@@ -231,18 +231,18 @@ pub struct LayoutState {
     rects: Vec<LayoutRect>,
     cursor: Option<CursorLayout>,
     background_color: Hsla,
-    dimensions: Size<Pixels>,
+    dimensions: Size<f32>,
     display_offset: usize,
 }
 
 #[derive(Debug, Default)]
 struct LayoutCell {
-    point: Point<i32>,
+    point: Point<f32>,
     text: gpui::ShapedLine,
 }
 
 impl LayoutCell {
-    fn new(point: Point<i32>, text: gpui::ShapedLine) -> LayoutCell {
+    fn new(point: Point<f32>, text: gpui::ShapedLine) -> LayoutCell {
         LayoutCell { point, text }
     }
 
@@ -253,17 +253,16 @@ impl LayoutCell {
         _visible_bounds: Bounds<Pixels>,
         cx: &mut WindowContext,
     ) {
-        todo!()
-        // let pos = {
-        //     let point = self.point;
+        let pos = {
+            let point = self.point;
 
-        //     Point::new(
-        //         (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
-        //         origin.y + point.line as f32 * layout.dimensions.line_height,
-        //     )
-        // };
+            Point::new(
+                (origin.x + px(point.x * layout.dimensions.width)).floor(),
+                origin.y + px(point.y * layout.dimensions.height),
+            )
+        };
 
-        // self.text.paint(pos, layout.dimensions.line_height, cx).ok();
+        self.text.paint(pos, px(layout.dimensions.height), cx).ok();
     }
 }
 
