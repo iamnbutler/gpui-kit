@@ -1,8 +1,6 @@
-default-members = ["crates/gpui-kit"]
-
 [workspace]
 resolver = "2"
-members = ["crates/gpui-kit", "crates/assets", "crates/common"]
+members = ["crates/gpui-kit", "crates/assets", "crates/common", "crates/demos"]
 
 [workspace.dependencies]
 gpui = { git = "https://github.com/zed-industries/zed.git" }

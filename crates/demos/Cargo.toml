@@ -1,0 +1,12 @@
+[package]
+name = "demos"
+version = "0.1.0"
+
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+gpui.workspace = true
+itertools.workspace = true
+anyhow.workspace = true
+gpui-kit = { path = "../gpui-kit" }

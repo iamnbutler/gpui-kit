@@ -1,2 +1,2 @@
 pub use assets::*;
-pub use icons::*;
+pub use common::*;
