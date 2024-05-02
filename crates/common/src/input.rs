@@ -231,18 +231,18 @@ pub struct LayoutState {
     rects: Vec<LayoutRect>,
     cursor: Option<CursorLayout>,
     background_color: Hsla,
-    dimensions: Size<f32>,
+    dimensions: Size<Pixels>,
     display_offset: usize,
 }
 
 #[derive(Debug, Default)]
 struct LayoutCell {
-    point: Point<f32>,
+    point: Point<Pixels>,
     text: gpui::ShapedLine,
 }
 
 impl LayoutCell {
-    fn new(point: Point<f32>, text: gpui::ShapedLine) -> LayoutCell {
+    fn new(point: Point<Pixels>, text: gpui::ShapedLine) -> LayoutCell {
         LayoutCell { point, text }
     }
 
@@ -257,24 +257,24 @@ impl LayoutCell {
             let point = self.point;
 
             Point::new(
-                (origin.x + px(point.x * layout.dimensions.width)).floor(),
-                origin.y + px(point.y * layout.dimensions.height),
+                (origin.x + point.x * layout.dimensions.width).floor(),
+                origin.y + point.y * layout.dimensions.height,
             )
         };
 
-        self.text.paint(pos, px(layout.dimensions.height), cx).ok();
+        self.text.paint(pos, layout.dimensions.height, cx).ok();
     }
 }
 
 #[derive(Clone, Debug, Default)]
 struct LayoutRect {
-    point: Point<i32>,
+    point: Point<Pixels>,
     num_of_cells: usize,
     color: Hsla,
 }
 
 impl LayoutRect {
-    fn new(point: Point<i32>, num_of_cells: usize, color: Hsla) -> LayoutRect {
+    fn new(point: Point<Pixels>, num_of_cells: usize, color: Hsla) -> LayoutRect {
         LayoutRect {
             point,
             num_of_cells,
@@ -291,21 +291,20 @@ impl LayoutRect {
     }
 
     fn paint(&self, origin: Point<Pixels>, layout: &LayoutState, cx: &mut WindowContext) {
-        todo!()
-        // let position = {
-        //     let point = self.point;
-        //     point(
-        //         (origin.x + point.column as f32 * layout.dimensions.cell_width).floor(),
-        //         origin.y + point.line as f32 * layout.dimensions.line_height,
-        //     )
-        // };
-        // let size = point(
-        //     (layout.dimensions.cell_width * self.num_of_cells as f32).ceil(),
-        //     layout.dimensions.line_height,
-        // )
-        // .into();
+        let position = {
+            let current_point = self.point;
+            point(
+                (origin.x + current_point.y * layout.dimensions.width).floor(),
+                origin.y + current_point.y * layout.dimensions.height,
+            )
+        };
+        let size = point(
+            (layout.dimensions.width * self.num_of_cells as f32).ceil(),
+            layout.dimensions.height,
+        )
+        .into();
 
-        // cx.paint_quad(fill(Bounds::new(position, size), self.color));
+        cx.paint_quad(fill(Bounds::new(position, size), self.color));
     }
 }
 
