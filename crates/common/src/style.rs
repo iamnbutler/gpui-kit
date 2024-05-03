@@ -1,5 +1,7 @@
 use gpui::*;
 
+use crate::color::DEFAULT_ACCENT;
+
 /// Styles an outline, like a border or ring
 #[derive(Clone)]
 pub struct Outline {
@@ -36,3 +38,32 @@ impl Outline {
         self
     }
 }
+
+#[derive(Clone, Refineable)]
+pub struct Styles {
+    text: TextStyle,
+    link: HighlightStyle,
+}
+
+impl Styles {
+    pub fn init(cx: &WindowContext) -> Self {
+        let text = cx.text_style();
+        let link = HighlightStyle {
+            color: Some(DEFAULT_ACCENT),
+            font_weight: None,
+            font_style: None,
+            background_color: None,
+            underline: Some(UnderlineStyle {
+                thickness: px(1.0),
+                color: Some(DEFAULT_ACCENT),
+                wavy: false,
+            }),
+            strikethrough: None,
+            fade_out: None,
+        };
+
+        Self { text, link }
+    }
+}
+
+impl Global for Styles {}

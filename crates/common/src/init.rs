@@ -1,5 +1,7 @@
 use gpui::*;
 
+use crate::style::Styles;
+
 actions!(
     focus,
     [
@@ -17,9 +19,14 @@ actions!(
     ]
 );
 
-/// Initialzes app resources like keybindings
-pub fn init(cx: &mut AppContext) {
+/// Initialzes app resources
+pub fn init_app(cx: &mut AppContext) {
     bind_keys(cx);
+}
+
+/// Initialzes styles
+pub fn init_window(cx: &mut WindowContext) {
+    cx.set_global(Styles::init(cx));
 }
 
 /// Bind core actions to the keymap
