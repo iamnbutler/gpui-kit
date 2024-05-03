@@ -1,5 +1,19 @@
 use gpui::{hsla, Hsla};
 
+pub const DEFAULT_BACKGROUND: Hsla = Hsla {
+    h: 0.0,
+    s: 0.0,
+    l: 1.0,
+    a: 1.0,
+};
+
+pub const DEFAULT_TEXT: Hsla = Hsla {
+    h: 0.0,
+    s: 0.0,
+    l: 0.0,
+    a: 1.0,
+};
+
 pub const DEFAULT_ACCENT: Hsla = Hsla {
     h: 246. / 360.,
     s: 0.91,

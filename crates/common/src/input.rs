@@ -1,4 +1,6 @@
 #![allow(unused)]
+use std::ops::DerefMut;
+
 use gpui::prelude::FluentBuilder;
 use gpui::{
     div, fill, hsla, point, px, relative, AppContext, Bounds, Context, CursorStyle, DispatchPhase,
@@ -11,7 +13,13 @@ use gpui::{
 use itertools::Itertools;
 
 use crate::cursor::CursorLayout;
+use crate::style::Styles;
 use crate::{color::transparent, style::Outline};
+
+const DEBUG_INPUT_WIDTH: Pixels = px(160.);
+const DEBUG_INPUT_HEIGHT: Pixels = px(24.);
+const DEBUG_CELL_WIDTH: Pixels = px(5.);
+const DEBUG_LINE_HEIGHT: Pixels = px(5.);
 
 struct TextInputHandler {
     input_text: Model<Input>,
@@ -127,6 +135,60 @@ impl Input {
     pub fn handle_blur(&mut self, cx: &mut ViewContext<Self>) {
         cx.emit(InputEvent::Blur);
         cx.notify();
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InputSize {
+    pub cell_width: Pixels,
+    pub line_height: Pixels,
+    pub size: Size<Pixels>,
+}
+
+impl InputSize {
+    pub fn new(line_height: Pixels, cell_width: Pixels, size: Size<Pixels>) -> Self {
+        InputSize {
+            cell_width,
+            line_height,
+            size,
+        }
+    }
+
+    pub fn num_lines(&self) -> usize {
+        (self.size.height / self.line_height).floor() as usize
+    }
+
+    pub fn num_columns(&self) -> usize {
+        (self.size.width / self.cell_width).floor() as usize
+    }
+
+    pub fn height(&self) -> Pixels {
+        self.size.height
+    }
+
+    pub fn width(&self) -> Pixels {
+        self.size.width
+    }
+
+    pub fn cell_width(&self) -> Pixels {
+        self.cell_width
+    }
+
+    pub fn line_height(&self) -> Pixels {
+        self.line_height
+    }
+}
+
+impl Default for InputSize {
+    fn default() -> Self {
+        InputSize::new(
+            DEBUG_LINE_HEIGHT,
+            DEBUG_CELL_WIDTH,
+            Size {
+                width: DEBUG_INPUT_WIDTH,
+                height: DEBUG_INPUT_HEIGHT,
+            },
+        )
     }
 }
 
@@ -336,209 +398,131 @@ impl Element for InputElement {
         request_layout: &mut Self::RequestLayoutState,
         cx: &mut WindowContext,
     ) -> Self::PrepaintState {
-        todo!("Implement InputElement::prepaint");
-        // self.interactivity
-        //     .prepaint(global_id, bounds, bounds.size, cx, |_, _, hitbox, cx| {
-        //         let hitbox = hitbox.unwrap();
-        //         // let settings = ThemeSettings::get_global(cx).clone();
+        // todo!("Implement InputElement::prepaint");
+        self.interactivity
+            .prepaint(global_id, bounds, bounds.size, cx, |_, _, hitbox, cx| {
+                let hitbox = hitbox.unwrap();
+                let styles = Styles::get_global(cx.deref_mut());
 
-        //         // let buffer_font_size = settings.buffer_font_size(cx);
+                let font_family = &styles.text.font().family.clone();
+                let font_features = &styles.text.font_features.clone();
+                let line_height = &styles.text.line_height;
+                let font_size = &styles.text.font_size;
 
-        //         // let terminal_settings = TerminalSettings::get_global(cx);
+                let link_style = &styles.link.clone();
 
-        //         // we should have a global style of some type
-        //         // not constantly getting the style from the context
-        //         let temp_text_style = cx.text_style().clone();
+                let text_style = &styles.text.clone();
 
-        //         let font_family = temp_text_style.font().family.clone();
-        //         let font_features = temp_text_style.font_features.clone();
-        //         let line_height = temp_text_style.line_height;
-        //         let font_size = temp_text_style.font_size;
+                let text_system = cx.text_system();
 
-        //         let theme = cx.theme().clone();
+                let dimensions = {
+                    let rem_size = cx.rem_size();
+                    let font_pixels = text_style.font_size.to_pixels(rem_size);
+                    let line_height =
+                        font_pixels * line_height.to_pixels(font_pixels.into(), rem_size);
+                    let font_id = cx.text_system().resolve_font(&text_style.font());
 
-        //         let link_style = HighlightStyle {
-        //             color: Some(theme.colors().link_text_hover),
-        //             font_weight: None,
-        //             font_style: None,
-        //             background_color: None,
-        //             underline: Some(UnderlineStyle {
-        //                 thickness: px(1.0),
-        //                 color: Some(theme.colors().link_text_hover),
-        //                 wavy: false,
-        //             }),
-        //             strikethrough: None,
-        //             fade_out: None,
-        //         };
+                    let cell_width = text_system
+                        .advance(font_id, font_pixels, 'm')
+                        .unwrap()
+                        .width;
 
-        //         let text_style = TextStyle {
-        //             font_family,
-        //             font_features,
-        //             font_size: font_size.into(),
-        //             font_style: FontStyle::Normal,
-        //             line_height: line_height.into(),
-        //             background_color: None,
-        //             white_space: WhiteSpace::Normal,
-        //             // These are going to be overridden per-cell
-        //             underline: None,
-        //             strikethrough: None,
-        //             color: theme.colors().text,
-        //             font_weight: FontWeight::NORMAL,
-        //         };
+                    let mut size = bounds.size;
 
-        //         let text_system = cx.text_system();
-        //         let player_color = theme.players().local();
-        //         let match_color = theme.colors().search_match_background;
-        //         let gutter;
-        //         let dimensions = {
-        //             let rem_size = cx.rem_size();
-        //             let font_pixels = text_style.font_size.to_pixels(rem_size);
-        //             let line_height = font_pixels * line_height.to_pixels(rem_size);
-        //             let font_id = cx.text_system().resolve_font(&text_style.font());
+                    InputSize::new(line_height, cell_width, size)
+                };
 
-        //             let cell_width = text_system
-        //                 .advance(font_id, font_pixels, 'm')
-        //                 .unwrap()
-        //                 .width;
-        //             gutter = cell_width;
+                let background_color = styles.background.clone();
 
-        //             let mut size = bounds.size;
-        //             size.width -= gutter;
+                // let InputContent {
+                //     cells,
+                //     mode,
+                //     display_offset,
+                //     cursor_char,
+                //     selection,
+                //     cursor,
+                //     ..
+                // } = &self.terminal.read(cx).last_content;
 
-        //             // https://github.com/zed-industries/zed/issues/2750
-        //             // if the terminal is one column wide, rendering 🦀
-        //             // causes alacritty to misbehave.
-        //             if size.width < cell_width * 2.0 {
-        //                 size.width = cell_width * 2.0;
-        //             }
+                // then have that representation be converted to the appropriate highlight data structure
 
-        //             TerminalSize::new(line_height, cell_width, size)
-        //         };
+                // let (cells, rects) = TerminalElement::layout_grid(
+                //     cells,
+                //     &text_style,
+                //     &cx.text_system(),
+                //     last_hovered_word
+                //         .as_ref()
+                //         .map(|last_hovered_word| (link_style, &last_hovered_word.word_match)),
+                //     cx,
+                // );
 
-        //         let search_matches = self.terminal.read(cx).matches.clone();
+                // Layout cursor. Rectangle is used for IME, so we should lay it out even
+                // if we don't end up showing it.
+                // let cursor = if let AlacCursorShape::Hidden = cursor.shape {
+                //     None
+                // } else {
+                //     let cursor_point = DisplayCursor::from(cursor.point, *display_offset);
+                //     let cursor_text = {
+                //         let str_trxt = cursor_char.to_string();
+                //         let len = str_trxt.len();
+                //         cx.text_system()
+                //             .shape_line(
+                //                 str_trxt.into(),
+                //                 text_style.font_size.to_pixels(cx.rem_size()),
+                //                 &[TextRun {
+                //                     len,
+                //                     font: text_style.font(),
+                //                     color: theme.colors().terminal_background,
+                //                     background_color: None,
+                //                     underline: Default::default(),
+                //                     strikethrough: None,
+                //                 }],
+                //             )
+                //             .unwrap()
+                //     };
 
-        //         let background_color = theme.colors().terminal_background;
+                let focused = self.focused;
+                //     TerminalElement::shape_cursor(cursor_point, dimensions, &cursor_text).map(
+                //         move |(cursor_position, block_width)| {
+                //             let (shape, text) = match cursor.shape {
+                //                 AlacCursorShape::Block if !focused => (CursorShape::Hollow, None),
+                //                 AlacCursorShape::Block => (CursorShape::Block, Some(cursor_text)),
+                //                 AlacCursorShape::Underline => (CursorShape::Underscore, None),
+                //                 AlacCursorShape::Beam => (CursorShape::Bar, None),
+                //                 AlacCursorShape::HollowBlock => (CursorShape::Hollow, None),
+                //                 //This case is handled in the if wrapping the whole cursor layout
+                //                 AlacCursorShape::Hidden => unreachable!(),
+                //             };
 
-        //         let last_hovered_word = self.terminal.update(cx, |terminal, cx| {
-        //             terminal.set_size(dimensions);
-        //             terminal.sync(cx);
-        //             if self.can_navigate_to_selected_word
-        //                 && terminal.can_navigate_to_selected_word()
-        //             {
-        //                 terminal.last_content.last_hovered_word.clone()
-        //             } else {
-        //                 None
-        //             }
-        //         });
+                //             CursorLayout::new(
+                //                 cursor_position,
+                //                 block_width,
+                //                 dimensions.line_height,
+                //                 theme.players().local().cursor,
+                //                 shape,
+                //                 text,
+                //             )
+                //         },
+                //     )
+                // };
 
-        //         let hyperlink_tooltip = last_hovered_word.clone().map(|hovered_word| {
-        //             let offset = bounds.origin + Point::new(gutter, px(0.));
-        //             let mut element = div()
-        //                 .size_full()
-        //                 .id("terminal-element")
-        //                 .tooltip(move |cx| Tooltip::text(hovered_word.word.clone(), cx))
-        //                 .into_any_element();
-        //             element.prepaint_as_root(offset, bounds.size.into(), cx);
-        //             element
-        //         });
+                // LayoutState {
+                //     hitbox,
+                //     cells,
+                //     cursor,
+                //     background_color,
+                //     dimensions,
+                //     rects,
+                //     relative_highlighted_ranges,
+                //     mode: *mode,
+                //     display_offset: *display_offset,
+                //     hyperlink_tooltip,
+                //     gutter,
+                //     last_hovered_word,
+                // }
 
-        //         let TerminalContent {
-        //             cells,
-        //             mode,
-        //             display_offset,
-        //             cursor_char,
-        //             selection,
-        //             cursor,
-        //             ..
-        //         } = &self.terminal.read(cx).last_content;
-
-        //         // searches, highlights to a single range representations
-        //         let mut relative_highlighted_ranges = Vec::new();
-        //         for search_match in search_matches {
-        //             relative_highlighted_ranges.push((search_match, match_color))
-        //         }
-        //         if let Some(selection) = selection {
-        //             relative_highlighted_ranges
-        //                 .push((selection.start..=selection.end, player_color.selection));
-        //         }
-
-        //         // then have that representation be converted to the appropriate highlight data structure
-
-        //         let (cells, rects) = TerminalElement::layout_grid(
-        //             cells,
-        //             &text_style,
-        //             &cx.text_system(),
-        //             last_hovered_word
-        //                 .as_ref()
-        //                 .map(|last_hovered_word| (link_style, &last_hovered_word.word_match)),
-        //             cx,
-        //         );
-
-        //         // Layout cursor. Rectangle is used for IME, so we should lay it out even
-        //         // if we don't end up showing it.
-        //         let cursor = if let AlacCursorShape::Hidden = cursor.shape {
-        //             None
-        //         } else {
-        //             let cursor_point = DisplayCursor::from(cursor.point, *display_offset);
-        //             let cursor_text = {
-        //                 let str_trxt = cursor_char.to_string();
-        //                 let len = str_trxt.len();
-        //                 cx.text_system()
-        //                     .shape_line(
-        //                         str_trxt.into(),
-        //                         text_style.font_size.to_pixels(cx.rem_size()),
-        //                         &[TextRun {
-        //                             len,
-        //                             font: text_style.font(),
-        //                             color: theme.colors().terminal_background,
-        //                             background_color: None,
-        //                             underline: Default::default(),
-        //                             strikethrough: None,
-        //                         }],
-        //                     )
-        //                     .unwrap()
-        //             };
-
-        //             let focused = self.focused;
-        //             TerminalElement::shape_cursor(cursor_point, dimensions, &cursor_text).map(
-        //                 move |(cursor_position, block_width)| {
-        //                     let (shape, text) = match cursor.shape {
-        //                         AlacCursorShape::Block if !focused => (CursorShape::Hollow, None),
-        //                         AlacCursorShape::Block => (CursorShape::Block, Some(cursor_text)),
-        //                         AlacCursorShape::Underline => (CursorShape::Underscore, None),
-        //                         AlacCursorShape::Beam => (CursorShape::Bar, None),
-        //                         AlacCursorShape::HollowBlock => (CursorShape::Hollow, None),
-        //                         //This case is handled in the if wrapping the whole cursor layout
-        //                         AlacCursorShape::Hidden => unreachable!(),
-        //                     };
-
-        //                     CursorLayout::new(
-        //                         cursor_position,
-        //                         block_width,
-        //                         dimensions.line_height,
-        //                         theme.players().local().cursor,
-        //                         shape,
-        //                         text,
-        //                     )
-        //                 },
-        //             )
-        //         };
-
-        //         LayoutState {
-        //             hitbox,
-        //             cells,
-        //             cursor,
-        //             background_color,
-        //             dimensions,
-        //             rects,
-        //             relative_highlighted_ranges,
-        //             mode: *mode,
-        //             display_offset: *display_offset,
-        //             hyperlink_tooltip,
-        //             gutter,
-        //             last_hovered_word,
-        //         }
-        //     })
+                todo!("Finish implementing InputElement::prepaint")
+            })
     }
 
     fn paint(

@@ -1,6 +1,6 @@
 use gpui::*;
 
-use crate::color::DEFAULT_ACCENT;
+use crate::color::{DEFAULT_ACCENT, DEFAULT_BACKGROUND};
 
 /// Styles an outline, like a border or ring
 #[derive(Clone)]
@@ -41,8 +41,9 @@ impl Outline {
 
 #[derive(Clone, Refineable)]
 pub struct Styles {
-    text: TextStyle,
-    link: HighlightStyle,
+    pub background: Hsla,
+    pub text: TextStyle,
+    pub link: HighlightStyle,
 }
 
 impl Styles {
@@ -62,7 +63,19 @@ impl Styles {
             fade_out: None,
         };
 
-        Self { text, link }
+        Self {
+            background: DEFAULT_BACKGROUND,
+            text,
+            link,
+        }
+    }
+
+    /// Get the global styles, panicking if they are not set
+    pub fn get_global(cx: &AppContext) -> &Self
+    where
+        Self: Sized,
+    {
+        cx.global::<Styles>()
     }
 }
 
