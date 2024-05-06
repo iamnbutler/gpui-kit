@@ -24,8 +24,8 @@ pub struct CursorLayout {
     line_height: Pixels,
     color: Hsla,
     shape: CursorShape,
-    block_text: Option<ShapedLine>,
-    cursor_name: Option<AnyElement>,
+    // block_text: Option<ShapedLine>,
+    // cursor_name: Option<AnyElement>,
 }
 
 #[derive(Debug)]
@@ -50,8 +50,8 @@ impl CursorLayout {
             line_height,
             color,
             shape,
-            block_text,
-            cursor_name: None,
+            // block_text,
+            // cursor_name: None,
         }
     }
 
@@ -87,32 +87,6 @@ impl CursorLayout {
         cursor_name: Option<CursorName>,
         cx: &mut WindowContext,
     ) {
-        if let Some(cursor_name) = cursor_name {
-            let bounds = self.bounds(origin);
-            let text_size = self.line_height / 1.5;
-
-            let name_origin = if cursor_name.is_top_row {
-                point(bounds.right() - px(1.), bounds.top())
-            } else {
-                point(bounds.left(), bounds.top() - text_size / 2. - px(1.))
-            };
-            let mut name_element = div()
-                .bg(self.color)
-                .text_size(text_size)
-                .px_0p5()
-                .line_height(text_size + px(2.))
-                .text_color(cursor_name.color)
-                .child(cursor_name.string.clone())
-                .into_any_element();
-
-            name_element.prepaint_as_root(
-                name_origin,
-                size(AvailableSpace::MinContent, AvailableSpace::MinContent),
-                cx,
-            );
-
-            self.cursor_name = Some(name_element);
-        }
     }
 
     pub fn paint(&mut self, origin: gpui::Point<Pixels>, cx: &mut WindowContext) {
@@ -125,15 +99,7 @@ impl CursorLayout {
             fill(bounds, self.color)
         };
 
-        if let Some(name) = &mut self.cursor_name {
-            name.paint(cx);
-        }
-
         cx.paint_quad(cursor);
-
-        if let Some(block_text) = &self.block_text {
-            todo!()
-        }
     }
 
     pub fn shape(&self) -> CursorShape {
