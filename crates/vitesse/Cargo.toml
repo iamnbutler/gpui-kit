@@ -10,5 +10,7 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-gpui.workspace = true
 assets = {path = "../assets"}
+components = {path = "../components"}
+gpui.workspace = true
+state = {path = "../state"}
