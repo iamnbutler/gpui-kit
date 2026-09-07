@@ -18,15 +18,4 @@ impl WindowCompat for Window {
         }
     }
 
-    #[inline]
-    fn clear_pending_keystrokes(&mut self, _cx: &mut App) {
-        #[cfg(feature = "gpui-1-18")]
-        {
-            Window::clear_pending_keystrokes(self);
-        }
-        #[cfg(feature = "gpui-1-19")]
-        {
-            Window::clear_pending_keystrokes(self, _cx);
-        }
-    }
 }
