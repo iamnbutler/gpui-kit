@@ -79,8 +79,8 @@ path = "examples/context_menu.rs"
 required-features = ["examples"]
 
 [dependencies]
-# GPUI framework (from gpui-unofficial on crates.io)
-gpui = { package = "gpui-unofficial", version = "1.18" }
+gpui-18 = { package = "gpui-unofficial", version = "1.18", optional = true }
+gpui-19 = { package = "gpui-unofficial", version = "1.19", optional = true }
 gpui_platform = { package = "gpui-platform-gpui-unofficial", version = "1.18", features = ["font-kit"] }
 rust-embed = "8.2.0"
 anyhow = "1.0.79"
@@ -146,7 +146,12 @@ web-sys = { version = "0.3", features = ["Window", "Location", "EventTarget"] }
 wasm-bindgen = "0.2"
 
 [features]
-default = []
+default = ["gpui-1-19"]
+
+# Expose feature flags that activate the respective dependency via `dep:`
+gpui-1-18 = ["dep:gpui-18"]
+gpui-1-19 = ["dep:gpui-19"]
+
 editor = ["dep:syntect"]
 schema = ["dep:schemars"]
 # Compile Metal shaders at runtime instead of at build time (no Xcode Metal
