@@ -2,7 +2,6 @@ use gpui::{App, Window};
 
 pub trait WindowCompat {
     fn blur(&mut self, cx: &mut App);
-    fn clear_pending_keystrokes(&mut self, cx: &mut App);
 }
 
 impl WindowCompat for Window {
