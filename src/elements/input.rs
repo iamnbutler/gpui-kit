@@ -18,6 +18,7 @@ use gpui::{
     Window, WrappedLine, fill, point, px, relative, size,
 };
 
+use crate::compat::WindowCompat;
 use crate::theme::{ActiveTheme, ControlSize, Themeable};
 use crate::traits::control_sized::ControlSized;
 
@@ -195,8 +196,8 @@ impl Input {
         register_action(&mut self.interactivity, &self.input, InputState::redo);
 
         self.interactivity
-            .on_action::<Escape>(|_action, window, _cx| {
-                window.blur();
+            .on_action::<Escape>(|_action, window, cx| {
+                WindowCompat::blur(window, cx);
             });
     }
 }
