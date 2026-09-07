@@ -80,7 +80,7 @@ required-features = ["examples"]
 
 [dependencies]
 gpui-18 = { package = "gpui-unofficial", version = "1.18", optional = true }
-gpui-19 = { package = "gpui-unofficial", version = "1.19", optional = true }
+gpui-19 = { package = "gpui-unofficial", version = "1.19-pre", optional = true }
 gpui_platform = { package = "gpui-platform-gpui-unofficial", version = "1.18", features = ["font-kit"] }
 rust-embed = "8.2.0"
 anyhow = "1.0.79"
