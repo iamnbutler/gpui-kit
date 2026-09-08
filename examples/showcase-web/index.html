@@ -46,27 +46,38 @@
                 user-select: none;
             }
 
-            /* The fallback. gpui-web appends its <canvas> to <body> only once
-               WebGPU has booted, so its presence is the signal the live demo is
-               running — hide the fallback the moment it appears. `:has()` covers
-               modern browsers; the MutationObserver in the script covers the
-               rest. A browser too old for either is also too old for WebGPU, so
-               it never gets a canvas and correctly keeps the fallback. */
+            /* The fallback. gpui-web appends a <canvas> to <body> as soon as it
+               starts bringing graphics up — before the WebGPU probe, and again
+               for the WebGL2 retry if that probe fails — so a canvas means the
+               demo is seconds from painting, and there is nothing left for the
+               fallback to say. `:has()` hides it the moment one exists (and
+               shows it again in the gap between a removed probe canvas and its
+               replacement); the MutationObserver in the script covers browsers
+               without `:has()`. */
             body:has(canvas) #gk-fallback {
+                display: none;
+            }
+            /* When neither backend works, gpui-web appends a bare <p> with the
+               error to <body>. The card reports that failure (and the script
+               logs the text), so the unstyled paragraph behind it is noise. */
+            #gk-fallback ~ p {
                 display: none;
             }
             #gk-fallback {
                 position: fixed;
                 inset: 0;
                 display: flex;
-                align-items: center;
-                justify-content: center;
                 padding: 24px;
+                overflow: auto;
                 font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
                 color: #e6e6ea;
                 line-height: 1.5;
             }
+            /* `margin: auto` centres the card when it fits and lets the
+               container scroll from the top when it does not (a tiny viewport
+               or a big zoom), where `align-items: center` would clip the top. */
             #gk-fallback .card {
+                margin: auto;
                 width: 100%;
                 max-width: 30rem;
                 text-align: center;
@@ -84,10 +95,18 @@
                 color: #cfcfd6;
                 margin: 0;
             }
+            #gk-fallback .meter,
             #gk-fallback .hint {
                 font-size: 0.85rem;
                 color: #8a8a95;
                 margin: 0;
+            }
+            #gk-fallback .meter {
+                font-variant-numeric: tabular-nums;
+            }
+            #gk-fallback .meter:empty,
+            #gk-fallback .hint:empty {
+                display: none;
             }
             #gk-fallback .links {
                 display: flex;
@@ -104,40 +123,60 @@
             #gk-fallback a:hover {
                 text-decoration: underline;
             }
-            /* Shown only while the demo is loading (JS adds `is-loading`). */
-            #gk-fallback .spinner {
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                border: 2px solid #2a2a33;
-                border-top-color: #7aa2f7;
-                animation: gk-spin 0.8s linear infinite;
+            /* The download meter, shown only while the demo is loading (JS adds
+               `is-loading`). GitHub Pages gzips the wasm without a
+               Content-Length, so the total is usually unknown and the bar runs
+               indeterminate while the byte count below it does the talking. */
+            #gk-fallback .progress {
+                width: 100%;
+                max-width: 18rem;
+                height: 4px;
+                border-radius: 2px;
+                background: #2a2a33;
+                overflow: hidden;
                 display: none;
             }
-            #gk-fallback.is-loading .spinner {
+            #gk-fallback.is-loading .progress {
                 display: block;
             }
-            @keyframes gk-spin {
+            #gk-fallback .progress .bar {
+                height: 100%;
+                width: 0;
+                border-radius: inherit;
+                background: #7aa2f7;
+                transition: width 0.15s linear;
+            }
+            #gk-fallback .progress.is-indeterminate .bar {
+                width: 35%;
+                animation: gk-slide 1.2s ease-in-out infinite;
+            }
+            @keyframes gk-slide {
+                from {
+                    transform: translateX(-100%);
+                }
                 to {
-                    transform: rotate(360deg);
+                    transform: translateX(300%);
                 }
             }
             @media (prefers-reduced-motion: reduce) {
-                #gk-fallback .spinner {
-                    animation: none;
+                /* A static partial bar reads as "stuck"; the byte count still
+                   shows movement. */
+                #gk-fallback .progress.is-indeterminate {
+                    display: none;
                 }
             }
         </style>
     </head>
     <body>
-        <!-- Visible until gpui-web's canvas takes over (see CSS above). Content
-             is set by the script below once it knows whether this browser can
-             actually run the WebGPU demo. -->
+        <!-- Visible until gpui-web's canvas takes over (see CSS above). The
+             script below decides what it says: download progress while the
+             demo loads, or the reason it cannot run in this browser. -->
         <div id="gk-fallback">
             <div class="card">
                 <div class="title">gpuikit</div>
-                <div class="spinner" aria-hidden="true"></div>
                 <p class="status" role="status" aria-live="polite">Preparing the showcase…</p>
+                <div class="progress" aria-hidden="true"><div class="bar"></div></div>
+                <p class="meter"></p>
                 <p class="hint"></p>
                 <div class="links">
                     <a href="https://github.com/iamnbutler/gpuikit">GitHub</a>
@@ -151,104 +190,287 @@
                 var root = document.getElementById("gk-fallback");
                 if (!root) return;
                 var statusEl = root.querySelector(".status");
+                var meterEl = root.querySelector(".meter");
                 var hintEl = root.querySelector(".hint");
+                var progressEl = root.querySelector(".progress");
+                var barEl = root.querySelector(".bar");
 
                 // WebGPU has broad but not universal support; keep the guidance
                 // evergreen rather than naming version numbers that will age.
-                var WEBGPU_HINT =
-                    "The showcase renders live on the GPU with WebGPU. It works in " +
-                    "recent Chrome, Edge, Safari, and Firefox — updating your browser, " +
-                    "or opening this in a Chromium-based one, should run it.";
+                var GRAPHICS_HINT =
+                    "The showcase renders live on the GPU and needs WebGPU or WebGL2. " +
+                    "A current Chrome, Edge, Safari, or Firefox has at least one of them.";
 
-                function show(status, hint, loading) {
-                    statusEl.textContent = status;
-                    hintEl.textContent = hint || "";
+                // `failed` is a verdict: the demo cannot run here, and progress
+                // updates stop overwriting the reason. A canvas appearing anyway
+                // still wins — the CSS hides the card regardless.
+                var failed = false;
+                var booted = false;
+                var downloadStarted = false;
+                var timer = null;
+
+                function setStatus(text) {
+                    statusEl.textContent = text;
+                }
+                function setHint(text) {
+                    hintEl.textContent = text || "";
+                }
+                function setMeter(text) {
+                    meterEl.textContent = text || "";
+                }
+                function setLoading(loading) {
                     root.classList.toggle("is-loading", !!loading);
                 }
-
-                // gpui-web appends its <canvas> to <body> once WebGPU is up; when
-                // it does, the demo is live and the fallback's job is done. CSS
-                // hides it too, but doing it here also lets us stop the timer.
-                var booted = false;
-                function onBooted() {
-                    if (booted) return;
-                    booted = true;
-                    root.classList.remove("is-loading");
-                    if (slowTimer) clearTimeout(slowTimer);
+                // `fraction` in 0..1, or null when the total is unknown.
+                function setProgress(fraction) {
+                    progressEl.classList.toggle("is-indeterminate", fraction === null);
+                    barEl.style.width = fraction === null ? "" : Math.round(fraction * 100) + "%";
                 }
-                if (document.querySelector("canvas")) {
-                    onBooted();
-                } else if (window.MutationObserver) {
-                    var obs = new MutationObserver(function () {
-                        if (document.querySelector("canvas")) {
-                            onBooted();
-                            obs.disconnect();
+                function clearTimer() {
+                    if (timer) clearTimeout(timer);
+                    timer = null;
+                }
+                function armTimer(ms, fn) {
+                    clearTimer();
+                    timer = setTimeout(function () {
+                        timer = null;
+                        if (!booted && !failed) fn();
+                    }, ms);
+                }
+                // The first verdict is the most specific one; later signals of
+                // the same failure (gpui-web's notice after "neither API") keep it.
+                function cannotRun(status, hint) {
+                    if (failed) return;
+                    failed = true;
+                    clearTimer();
+                    setLoading(false);
+                    setMeter("");
+                    setStatus(status);
+                    setHint(hint);
+                }
+                function megabytes(bytes) {
+                    return (bytes / 1048576).toFixed(1);
+                }
+
+                // --- Boot signal --------------------------------------------
+                // gpui-web appends a <canvas> to <body> before it probes each
+                // graphics API (see the CSS comment), so a canvas can come, go,
+                // and come back. When neither WebGPU nor WebGL2 worked, it
+                // appends a <p> beginning "Failed to initialize browser
+                // graphics" instead — the one signal that the demo is not
+                // coming, so the card reports it rather than waiting.
+                function hasCanvas() {
+                    return !!document.querySelector("body > canvas");
+                }
+                function syncBooted() {
+                    var now = hasCanvas();
+                    if (now && !booted) {
+                        clearTimer();
+                    } else if (!now && booted) {
+                        armStartTimer();
+                    }
+                    booted = now;
+                }
+                function graphicsFailed(message) {
+                    console.error("[showcase]", message);
+                    cannotRun("The live demo couldn’t start in this browser.", GRAPHICS_HINT);
+                }
+                if (window.MutationObserver) {
+                    new MutationObserver(function (records) {
+                        for (var i = 0; i < records.length; i++) {
+                            var added = records[i].addedNodes;
+                            for (var j = 0; j < added.length; j++) {
+                                var node = added[j];
+                                if (
+                                    node.nodeType === 1 &&
+                                    node.tagName === "P" &&
+                                    /^Failed to initialize browser graphics/.test(node.textContent)
+                                ) {
+                                    graphicsFailed(node.textContent);
+                                }
+                            }
                         }
-                    });
-                    obs.observe(document.body, { childList: true });
+                        syncBooted();
+                    }).observe(document.body, { childList: true });
                 }
+                syncBooted();
 
-                // Last-resort net: if we said "loading" but no canvas ever
-                // arrives (e.g. cross-origin isolation blocked, so the wasm
-                // threads abort), soften the message instead of spinning forever.
-                var slowTimer = null;
-                function armSlowTimer() {
-                    slowTimer = setTimeout(function () {
-                        if (booted) return;
-                        show(
-                            "The live demo is taking longer than expected — it may not run in this browser.",
-                            WEBGPU_HINT,
-                            false,
-                        );
-                    }, 20000);
+                // A wasm that aborts while starting (a panic, or the threads'
+                // shared memory refused because cross-origin isolation did not
+                // take) surfaces as an uncaught error. The head script logs
+                // these; here they end the wait.
+                function startupError(message) {
+                    if (booted || failed) return;
+                    cannotRun("The live demo hit an error while starting.", String(message));
                 }
+                window.addEventListener("error", function (e) {
+                    startupError(e.message);
+                });
+                window.addEventListener("unhandledrejection", function (e) {
+                    startupError(e.reason);
+                });
 
+                // --- Can it run here? ---------------------------------------
                 if (typeof WebAssembly === "undefined") {
-                    show(
+                    cannotRun(
                         "This showcase runs on WebAssembly, which this browser can’t run.",
                         "Try a current version of Chrome, Edge, Safari, or Firefox.",
-                        false,
                     );
                     return;
                 }
 
-                if (!navigator.gpu) {
-                    show(
-                        "This is a live WebGPU demo — and this browser doesn’t support WebGPU yet.",
-                        WEBGPU_HINT,
-                        false,
-                    );
-                    return;
+                // Graphics: gpui-web tries WebGPU, then WebGL2, so only a browser
+                // with neither is out. Chrome on Linux has navigator.gpu but hands
+                // back no adapter — that is the WebGL2 case, not a failure, and
+                // the demo runs there. The probe context is released right away.
+                function hasWebGl2() {
+                    try {
+                        var gl = document.createElement("canvas").getContext("webgl2");
+                        if (!gl) return false;
+                        var lose = gl.getExtension("WEBGL_lose_context");
+                        if (lose) lose.loseContext();
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
                 }
+                function webGpuAdapter() {
+                    if (!navigator.gpu) return Promise.resolve(null);
+                    return Promise.resolve()
+                        .then(function () {
+                            return navigator.gpu.requestAdapter();
+                        })
+                        .catch(function () {
+                            return null;
+                        });
+                }
+                webGpuAdapter().then(function (adapter) {
+                    if (adapter || booted || failed) return;
+                    if (hasWebGl2()) {
+                        setHint("WebGPU isn’t available in this browser, so the demo will run on WebGL2.");
+                    } else {
+                        cannotRun(
+                            "This live demo needs WebGPU or WebGL2, and this browser offers neither.",
+                            GRAPHICS_HINT,
+                        );
+                    }
+                });
 
-                // navigator.gpu can exist yet hand back no adapter (no usable
-                // GPU / driver). Confirm before promising the demo will load.
-                show("Loading the live demo…", "First load pulls a large WebAssembly bundle.", true);
-                armSlowTimer();
-                Promise.resolve()
-                    .then(function () {
-                        return navigator.gpu.requestAdapter();
-                    })
-                    .then(function (adapter) {
-                        if (!adapter && !booted) {
-                            if (slowTimer) clearTimeout(slowTimer);
-                            show(
-                                "This browser has WebGPU, but no compatible GPU adapter is available here.",
-                                WEBGPU_HINT,
-                                false,
-                            );
-                        }
-                    })
-                    .catch(function () {
-                        if (!booted) {
-                            if (slowTimer) clearTimeout(slowTimer);
-                            show(
-                                "This is a live WebGPU demo, and it couldn’t start on this browser.",
-                                WEBGPU_HINT,
-                                false,
-                            );
-                        }
+                // --- Download progress --------------------------------------
+                // wasm-bindgen's loader fetches the module through the global
+                // fetch and streams it into WebAssembly.instantiateStreaming.
+                // Wrapping fetch lets this page count the bytes as they pass and
+                // hand the loader an equivalent Response. The total is only
+                // known when the server sends an uncompressed Content-Length.
+                function onDownloadStart() {
+                    downloadStarted = true;
+                    if (failed) return;
+                    setLoading(true);
+                    setProgress(null);
+                    setStatus("Downloading the live demo…");
+                    // Nothing arriving for this long is worth saying out loud.
+                    armTimer(30000, function () {
+                        setStatus("Still downloading the live demo — this connection is slow…");
                     });
+                }
+                function onDownloadProgress(received, total) {
+                    if (failed) return;
+                    if (total > 0) {
+                        setProgress(Math.min(received / total, 1));
+                        setMeter(megabytes(received) + " of " + megabytes(total) + " MB");
+                    } else {
+                        setMeter(megabytes(received) + " MB");
+                    }
+                    armTimer(30000, function () {
+                        setStatus("Still downloading the live demo — this connection is slow…");
+                    });
+                }
+                function armStartTimer() {
+                    armTimer(15000, function () {
+                        cannotRun(
+                            "The live demo downloaded but didn’t start.",
+                            "It may not run in this browser; the browser console has the details.",
+                        );
+                    });
+                }
+                function onDownloaded() {
+                    if (failed) return;
+                    setProgress(1);
+                    setMeter("");
+                    setStatus("Starting the live demo…");
+                    armStartTimer();
+                }
+                function onDownloadFailed(reason) {
+                    cannotRun("The live demo failed to download.", reason ? String(reason) : "");
+                }
+
+                var nativeFetch = window.fetch;
+                var tracking = false;
+                if (nativeFetch && window.ReadableStream && window.Response) {
+                    window.fetch = function (input) {
+                        var url =
+                            typeof input === "string" ? input : input && input.url ? input.url : String(input);
+                        var promise = nativeFetch.apply(this, arguments);
+                        if (tracking || !/\.wasm(?:[?#]|$)/.test(url)) return promise;
+                        tracking = true;
+                        onDownloadStart();
+                        return promise.then(
+                            function (response) {
+                                if (!response.ok) {
+                                    onDownloadFailed("HTTP " + response.status);
+                                    return response;
+                                }
+                                if (!response.body) return response;
+                                var total = response.headers.get("Content-Encoding")
+                                    ? 0
+                                    : Number(response.headers.get("Content-Length")) || 0;
+                                var reader = response.body.getReader();
+                                var received = 0;
+                                var counted = new ReadableStream({
+                                    pull: function (controller) {
+                                        return reader.read().then(function (result) {
+                                            if (result.done) {
+                                                onDownloaded();
+                                                controller.close();
+                                                return;
+                                            }
+                                            received += result.value.byteLength;
+                                            onDownloadProgress(received, total);
+                                            controller.enqueue(result.value);
+                                        });
+                                    },
+                                    cancel: function (reason) {
+                                        return reader.cancel(reason);
+                                    },
+                                });
+                                return new Response(counted, {
+                                    status: response.status,
+                                    statusText: response.statusText,
+                                    headers: response.headers,
+                                });
+                            },
+                            function (error) {
+                                onDownloadFailed(error);
+                                throw error;
+                            },
+                        );
+                    };
+                }
+
+                // If the loader never asks for the module (a browser too old for
+                // ES modules fails silently), say so instead of "Preparing…"
+                // forever. The hosted build's first visit reloads once for the
+                // isolation service worker, well inside this window.
+                setLoading(true);
+                setProgress(null);
+                armTimer(20000, function () {
+                    if (!downloadStarted) {
+                        cannotRun(
+                            "The live demo never started loading.",
+                            "This browser may be too old to run it. " + GRAPHICS_HINT,
+                        );
+                    }
+                });
             })();
         </script>
     </body>
