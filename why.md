@@ -1,0 +1,1 @@
+This is not [`gpui-kit`](https://gpui-kit.com/). I don't know why `gpui-component` decided to rename to one character difference from `gpuikit` on Sept 3rd, 2026 - `gpuikit` has been around since [Oct 4, 2023](https://github.com/iamnbutler/gpuikit/commit/4dd3fd1a0570ac9127e6c517dd82e86d1edf12db) 😅

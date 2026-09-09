@@ -2115,6 +2115,21 @@ impl Showcase {
                     .child(badge(build_stamp()).outline())
                     .child(badge(concat!("gpui ", env!("GPUI_VERSION"))).secondary()),
             )
+            // Disambiguation: `gpui-component` renamed to `gpui-kit` in Sept
+            // 2026, one character off this project. The note links to `why.md`,
+            // the same explainer the README points at. `open_url` opens the
+            // browser natively; on the hosted web build it is best-effort.
+            .child(
+                div()
+                    .id("why-not-gpui-kit")
+                    .cursor_pointer()
+                    .text_xs()
+                    .text_color(theme.accent())
+                    .child("gpuikit is not gpui-kit — here's why →")
+                    .on_click(|_, _window, cx| {
+                        cx.open_url("https://github.com/iamnbutler/gpuikit/blob/main/why.md")
+                    }),
+            )
             .child(h1("Components for gpui, composed."))
             .child(lead(
                 "Everything on this board is built from the kit: cards, a table, \
