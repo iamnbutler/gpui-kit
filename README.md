@@ -10,6 +10,8 @@ A UI toolkit for [gpui](https://www.gpui.rs) applications. Targeting a conceptua
 
 [See it in action &rarr;](https://nate.rip/gpuikit/)
 
+> Note, `gpuikit` is not [`gpui-kit`](https://raw.githubusercontent.com/iamnbutler/gpuikit/main/why.md)
+
 ![The gpuikit showcase](https://raw.githubusercontent.com/iamnbutler/gpuikit/main/.github/media/showcase.png)
 
 ## Getting started
