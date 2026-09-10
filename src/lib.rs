@@ -55,12 +55,22 @@
 //! The `stitch` feature raises gpuikit's own floor to **1.95**. It is the only
 //! one that does.
 
+#[cfg(all(feature = "gpui-1-18", feature = "gpui-1-19"))]
+compile_error!("Features `gpui-1-18` and `gpui-1-19` are mutually exclusive.");
+#[cfg(not(any(feature = "gpui-1-18", feature = "gpui-1-19")))]
+compile_error!("You must select either `gpui-1-18` or `gpui-1-19`.");
+#[cfg(feature = "gpui-1-18")]
+extern crate gpui_18 as gpui;
+#[cfg(feature = "gpui-1-19")]
+extern crate gpui_19 as gpui;
+
 use gpui::App;
 use rust_embed::RustEmbed;
 
 // Core modules
 pub mod a11y;
 pub mod date;
+pub mod compat;
 pub mod element_id;
 pub mod elements;
 pub mod error;
